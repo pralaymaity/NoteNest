@@ -1,5 +1,5 @@
 const sequelize = require("./sequelize");
-const { User, Note } = require("../models/association"); 
+const { User, Note, Permission } = require("../models/association"); 
 
 (async function () {
   try {

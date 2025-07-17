@@ -22,8 +22,6 @@ app.use("/api" , authRoute);
 app.use("/api" , noteRoute);
 
 
-
-
 app.listen(process.env.PORT, () => {
   console.log(`Server running on ${process.env.PORT} port`);
 });

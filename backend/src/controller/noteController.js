@@ -2,7 +2,7 @@ const noteService = require("../service/noteService");
 
 exports.createNote = async (req, res) => {
   try {
-    const { title, content, ownerId, tags } = req.body;
+    const { title, content, ownerId, tags, isArchived  } = req.body;
 
     const imagePaths = req.files["images"]?.map((file) => file.path) || [];
     const filePaths = req.files["files"]?.map((file) => file.path) || [];
@@ -12,6 +12,7 @@ exports.createNote = async (req, res) => {
       content,
       ownerId,
       tags: tags ? JSON.parse(tags) : [],
+      isArchived,
       imagePaths,
       filePaths,
     });
@@ -34,8 +35,24 @@ exports.getNoteById = async (req, res) => {
   res.json(note);
 };
 
+exports.getNotesByUser = async (req, res) => {
+  const ownerId = req.params.userId;
+
+  try {
+    const notes = await noteService.getNotesByUser(ownerId);
+
+    if (!notes || notes.length === 0) {
+      return res.status(404).json({ message: "No notes found for this user." });
+    }
+
+    res.status(200).json(notes);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 exports.updateNote = async (req, res) => {
-  const { title, content, tags } = req.body;
+  const { title, content, tags, isArchived } = req.body;
 
   const imagePaths = req.files["images"]?.map((file) => file.path) || [];
   const filePaths = req.files["files"]?.map((file) => file.path) || [];
@@ -44,6 +61,7 @@ exports.updateNote = async (req, res) => {
     title,
     content,
     tags: tags ? JSON.parse(tags) : [],
+    isArchived,
     imagePaths,
     filePaths,
   });
@@ -59,3 +77,18 @@ exports.deleteNote = async (req, res) => {
 
   res.json({ message: "Note deleted" });
 };
+
+exports.shareNote = async (req, res) => {
+  try {
+    const result = await noteService.shareNote({
+      noteId: req.params.id,
+      userId: req.body.userId,
+      type: req.body.type
+    });
+    res.json(result);
+  } catch (error) {
+    const status = error.message.includes("not found") ? 404 : 400;
+    res.status(status).json({ error: error.message });
+  }
+};
+
