@@ -2,7 +2,8 @@ const noteService = require("../service/noteService");
 
 exports.createNote = async (req, res) => {
   try {
-    const { title, content, ownerId, tags, isArchived  } = req.body;
+    const { title, content, tags, isArchived } = req.body;
+    const ownerId = req.user.id;
 
     const imagePaths = req.files["images"]?.map((file) => file.path) || [];
     const filePaths = req.files["files"]?.map((file) => file.path) || [];
@@ -53,11 +54,12 @@ exports.getNotesByUser = async (req, res) => {
 
 exports.updateNote = async (req, res) => {
   const { title, content, tags, isArchived } = req.body;
+  const id = req.params.id;
 
   const imagePaths = req.files["images"]?.map((file) => file.path) || [];
   const filePaths = req.files["files"]?.map((file) => file.path) || [];
 
-  const updated = await noteService.updateNote(req.params.id, {
+  const updated = await noteService.updateNote(id, {
     title,
     content,
     tags: tags ? JSON.parse(tags) : [],
@@ -83,7 +85,7 @@ exports.shareNote = async (req, res) => {
     const result = await noteService.shareNote({
       noteId: req.params.id,
       userId: req.body.userId,
-      type: req.body.type
+      type: req.body.type,
     });
     res.json(result);
   } catch (error) {
@@ -91,4 +93,3 @@ exports.shareNote = async (req, res) => {
     res.status(status).json({ error: error.message });
   }
 };
-

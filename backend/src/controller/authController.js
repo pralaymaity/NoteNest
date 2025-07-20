@@ -7,6 +7,8 @@ exports.signup = async (req, res) => {
     res.status(200).json({ token});
   } catch (error) {
     if (error.message === "Email already taken") {
+      console.log("Email already taken");
+      
       return res.status(409).json({ error: error.message });
     }
     res.status(400).json({ error: error.message });
