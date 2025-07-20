@@ -10,6 +10,7 @@ const AppRoutes = () => {
   const LoginPage = lazy(() => import("../pages/LoginPage"));
   const RegistrationPage = lazy(() => import("../pages/RegistrationPage"));
   const DashboardPage = lazy(() => import("../pages/DashboardPage"));
+  const NotePage = lazy(() => import("../pages/NotePage"));
 
   const appRoute = createBrowserRouter([
     {
@@ -31,6 +32,10 @@ const AppRoutes = () => {
         {
           path:"dashboard",
           element:<DashboardPage />
+        },
+        {
+          path:"note",
+          element:<NotePage />
         }
       ]
     },
