@@ -15,23 +15,46 @@ exports.getNoteById = async (id) => {
 };
 
 exports.getNotesByUser = async (ownerId) => {
-  return await Note.findAll({
-    where: { ownerId },
-    order: [['createdAt', 'DESC']], // optional: newest first
+
+  const ownedNotes = await Note.findAll({
+    where: { ownerId: ownerId },
   });
+
+  // Notes shared with the user
+  const sharedNotes = await Note.findAll({
+    include: [
+      {
+        model: User,
+        attributes: ["id", "name", "email"], // info about sharer
+        through: { attributes: ["type"] },   // include read/write from Permission
+        where: { id: ownerId },              // filter: shared to this user
+      },
+    ],
+  });
+
+  return [...ownedNotes, ...sharedNotes];
 };
 
+exports.updateNote = async (noteId, userId, updateData) => {
+  const note = await Note.findByPk(noteId);
+  if (!note) throw new Error("Note not found");
 
-exports.updateNote = async (id, updateData) => {
-  const note = await Note.findByPk(id);
-  if (!note) return null;
+  // Owner can always edit
+  if (note.ownerId !== userId) {
+    // Check permission for shared users
+    const permission = await Permission.findOne({
+      where: { NoteId: noteId, UserId: userId },
+    });
+
+    if (!permission) throw new Error("Access denied");
+    if (permission.type !== "write") throw new Error("Read-only access");
+  }
 
   // If no images/files are sent, retain old data
   updateData.imagePaths = updateData.imagePaths || note.imagePaths;
   updateData.filePaths = updateData.filePaths || note.filePaths;
 
   return await note.update(updateData);
-
 };
 
 exports.deleteNote = async (id) => {
@@ -40,19 +63,33 @@ exports.deleteNote = async (id) => {
   return await note.destroy();
 };
 
-exports.shareNote = async ({ noteId, userId, type }) => {
+exports.getAllUsers = async () => {
+  const users = await User.findAll({
+    attributes: ["id", "name", "email"],
+  });
+  return users;
+};
 
+exports.shareNote = async ({ noteId, users }) => {
   const note = await Note.findByPk(noteId);
-
   if (!note) throw new Error("Note not found");
 
-  if (!userId || !["read", "write"].includes(type)) {
-    throw new Error("Invalid input");
+  const results = [];
+  for (const { userId, type } of users) {
+    if (!userId || !["read", "write"].includes(type)) {
+      throw new Error("Invalid input");
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) throw new Error("User not found");
+
+    const shared = await Permission.upsert({
+      UserId: userId,
+      NoteId: note.id,
+      type,
+    });
+    results.push(shared);
   }
 
-  const user = await User.findByPk(userId);
-  if (!user) throw new Error("User not found");
-
-  await Permission.upsert({ UserId: userId, NoteId: note.id, type });
-  return { message: "Note shared successfully" };
+  return { message: "Note shared successfully", count: results.length };
 };

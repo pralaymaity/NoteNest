@@ -21,6 +21,8 @@ noteRoute.get("/notes", noteController.getAllNotes);
 noteRoute.get("/notes/:id", noteController.getNoteById);
 noteRoute.get("/user/:userId", noteController.getNotesByUser);
 
+noteRoute.get("/users", noteController.getAllUsers);
+
 
 noteRoute.put(
   "/notes/:id",

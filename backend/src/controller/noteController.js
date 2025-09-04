@@ -53,25 +53,40 @@ exports.getNotesByUser = async (req, res) => {
 };
 
 exports.updateNote = async (req, res) => {
-  const { title, content, tags, isArchived } = req.body;
-  const id = req.params.id;
+  try {
+    const { title, content, tags, isArchived } = req.body;
+    const id = req.params.id;
+    const userId = req.user.id; // 👈 from JWT middleware
 
-  const imagePaths = req.files["images"]?.map((file) => file.path) || [];
-  const filePaths = req.files["files"]?.map((file) => file.path) || [];
+    // Fetch existing note first
+    const existingNote = await noteService.getNoteById(id);
+    if (!existingNote) return res.status(404).json({ message: "Note not found" });
 
-  const updated = await noteService.updateNote(id, {
-    title,
-    content,
-    tags: tags ? JSON.parse(tags) : [],
-    isArchived,
-    imagePaths,
-    filePaths,
-  });
+    // If new uploads exist, take them; otherwise keep old
+    const imagePaths = req.files?.["images"]
+      ? req.files["images"].map((file) => file.path)
+      : existingNote.imagePaths;
 
-  if (!updated) return res.status(404).json({ message: "Note not found" });
+    const filePaths = req.files?.["files"]
+      ? req.files["files"].map((file) => file.path)
+      : existingNote.filePaths;
 
-  res.json({ message: "Note updated", updated });
+    const updated = await noteService.updateNote(id, userId, {
+      title,
+      content,
+      tags: tags ? JSON.parse(tags) : existingNote.tags,
+      isArchived,
+      imagePaths,
+      filePaths,
+    });
+
+    res.json({ message: "Note updated", updated });
+  } catch (err) {
+    console.error("Update note error:", err);
+    res.status(403).json({ message: err.message }); // 403 for permission issues
+  }
 };
+
 
 exports.deleteNote = async (req, res) => {
   const deleted = await noteService.deleteNote(req.params.id);
@@ -80,16 +95,29 @@ exports.deleteNote = async (req, res) => {
   res.json({ message: "Note deleted" });
 };
 
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await noteService.getAllUsers();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+};
+
 exports.shareNote = async (req, res) => {
   try {
-    const result = await noteService.shareNote({
-      noteId: req.params.id,
-      userId: req.body.userId,
-      type: req.body.type,
-    });
+    const { users } = req.body; // [{ userId, type }]
+    const noteId = req.params.id;
+
+    if (!Array.isArray(users) || users.length === 0) {
+      return res.status(400).json({ error: "Invalid input" });
+    }
+
+    const result = await noteService.shareNote({ noteId, users });
     res.json(result);
   } catch (error) {
     const status = error.message.includes("not found") ? 404 : 400;
     res.status(status).json({ error: error.message });
   }
 };
+
