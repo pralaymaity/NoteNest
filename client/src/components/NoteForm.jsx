@@ -1,8 +1,7 @@
-import React from "react";
-import { createNote } from "../service/noteService";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createNote, updateNote } from "../service/noteService";
 
-const NoteForm = ({ onNoteCreated }) => {
+const NoteForm = ({ onNoteCreated, onNoteUpdated, initialData, onCancel }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
@@ -10,31 +9,71 @@ const NoteForm = ({ onNoteCreated }) => {
   const [images, setImages] = useState([]);
   const [files, setFiles] = useState([]);
 
+  // 👇 When editing, prefill form fields
+  useEffect(() => {
+    if (initialData) {
+      setTitle(initialData.title || "");
+      setContent(initialData.content || "");
+      setTags(initialData.tags ? initialData.tags.join(",") : "");
+      setIsArchived(initialData.isArchived || false);
+      setImages([]); // optional: you may want to show already uploaded files
+      setFiles([]);
+    }
+  }, [initialData]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const formData = new FormData();
-
-    formData.append("title", title);
-    formData.append("content", content);
-    formData.append("tags", JSON.stringify(tags.split(",")));
-    formData.append("isArchived", isArchived);
-    images.forEach((img) => formData.append("images", img));
-    files.forEach((file) => formData.append("files", file));
-
     try {
-      const res = await createNote(formData);
+      if (initialData) {
+        // EDIT MODE
+        const updatedFields = {
+          title,
+          content,
+          tags: tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
+          isArchived,
+          images,
+          files,
+        };
 
-      onNoteCreated(res.data);
+        const res = await updateNote(initialData.id, updatedFields);
+        if (onNoteUpdated) onNoteUpdated(res);
+        console.log("Note updated successfully");
+      } else {
+        // CREATE MODE
+        const formData = new FormData();
+        formData.append("title", title);
+        formData.append("content", content);
+        formData.append(
+          "tags",
+          JSON.stringify(
+            tags
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          )
+        );
+        formData.append("isArchived", isArchived);
+        images.forEach((img) => formData.append("images", img));
+        files.forEach((file) => formData.append("files", file));
+
+        const res = await createNote(formData);
+        if (onNoteCreated) onNoteCreated(res.data);
+        console.log("Note created successfully");
+      }
+
+      // reset form
       setTitle("");
       setContent("");
       setTags("");
       setIsArchived(false);
       setImages([]);
       setFiles([]);
-      console.log("Note create Successfully");
     } catch (err) {
-      console.error("Error creating note:", err);
+      console.error("Error saving note:", err);
     }
   };
 
@@ -44,7 +83,7 @@ const NoteForm = ({ onNoteCreated }) => {
       className="max-w-xl mx-auto p-8 bg-white rounded-2xl shadow-lg space-y-6"
     >
       <h2 className="text-3xl font-bold text-center text-gray-800">
-        New Note
+        {initialData ? "Edit Note" : "New Note"}
       </h2>
 
       <input
@@ -122,12 +161,24 @@ const NoteForm = ({ onNoteCreated }) => {
         </label>
       </div>
 
-      <button
-        type="submit"
-        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold text-lg"
-      >
-        Create Note
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold text-lg"
+        >
+          {initialData ? "Update Note" : "Create Note"}
+        </button>
+
+        {initialData && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full bg-gray-400 text-white py-3 px-6 rounded-lg hover:bg-gray-500 transition duration-200 font-semibold text-lg"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 };
